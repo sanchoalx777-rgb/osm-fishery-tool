@@ -1188,6 +1188,49 @@
   .coord-tool .ct-result{font-size:.78rem;color:var(--ink-muted);width:100%;}
   .coord-tool .ct-result strong{color:var(--ink);}
 
+  /* ---------- marine conditions box (in zone card) ---------- */
+  .marine-box{
+    margin-top:12px;
+    padding-top:10px;
+    border-top:1px dashed var(--border);
+  }
+  .marine-head{
+    font-size:.78rem;
+    font-weight:600;
+    color:var(--ink-muted);
+    margin-bottom:6px;
+  }
+  .marine-body{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .marine-body.loading{
+    color:var(--ink-faint);
+    font-size:.8rem;
+  }
+  .marine-body.marine-error{
+    color:var(--ink-faint);
+    font-size:.78rem;
+    font-style:italic;
+  }
+  .marine-row{
+    display:flex;
+    align-items:baseline;
+    gap:7px;
+    font-size:.82rem;
+    color:var(--ink);
+  }
+  .marine-row .mr-ic{flex:none;width:1.3em;text-align:center;}
+  .marine-row .mr-label{color:var(--ink-faint);flex:none;}
+  .marine-row .mr-val{font-family:"IBM Plex Mono",monospace;}
+  .marine-foot{
+    margin-top:4px;
+    font-size:.7rem;
+    color:var(--ink-faint);
+  }
+  .marine-foot a{color:var(--ink-faint);text-decoration:underline;}
+
   /* ---------- print card ---------- */
   #printCard{display:none;}
   @media print{
@@ -4435,6 +4478,112 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
     }
     return null;
   }
+  /* ---------- marine conditions (Open-Meteo, no key, client-side fetch) ---------- */
+  var MARINE_CACHE = {};
+  var MARINE_TTL_MS = 15 * 60 * 1000;
+  var marineToken = 0;
+  var COMPASS = ["С","ССВ","СВ","ВСВ","В","ВЮВ","ЮВ","ЮЮВ","Ю","ЮЮЗ","ЮЗ","ЗЮЗ","З","ЗСЗ","СЗ","ССЗ"];
+  function compassDir(deg){
+    if (deg === null || deg === undefined || isNaN(deg)) return "";
+    var idx = Math.round(deg / 22.5) % 16;
+    if (idx < 0) idx += 16;
+    return COMPASS[idx];
+  }
+  function bboxCentroid(bbox){
+    var south = bbox[0], north = bbox[1], west = bbox[2], east = bbox[3];
+    var lat = (south + north) / 2;
+    var e = east;
+    if (e < west) e += 360;
+    var lon = ((west + e) / 2 + 540) % 360 - 180;
+    return [lat, lon];
+  }
+  function fetchMarine(lat, lon){
+    var key = lat.toFixed(2) + "," + lon.toFixed(2);
+    var cached = MARINE_CACHE[key];
+    if (cached && (Date.now() - cached.ts) < MARINE_TTL_MS) return Promise.resolve(cached.data);
+    var marineUrl = "https://marine-api.open-meteo.com/v1/marine?latitude=" + lat + "&longitude=" + lon +
+      "&current=wave_height,wave_direction,wave_period,sea_surface_temperature&timezone=auto";
+    var windUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon +
+      "&current=wind_speed_10m,wind_direction_10m,temperature_2m&wind_speed_unit=ms&timezone=auto";
+    return Promise.all([
+      fetch(marineUrl).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
+      fetch(windUrl).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+    ]).then(function(results){
+      var marine = results[0] && results[0].current, wind = results[1] && results[1].current;
+      var data;
+      if (!marine && !wind){
+        data = { ok: false, reason: "network" };
+      } else if (marine && marine.wave_height === null){
+        data = { ok: false, reason: "land" };
+      } else {
+        data = {
+          ok: true,
+          time: (marine && marine.time) || (wind && wind.time) || "",
+          waveHeight: marine ? marine.wave_height : null,
+          wavePeriod: marine ? marine.wave_period : null,
+          waveDir: marine ? marine.wave_direction : null,
+          waterTemp: marine ? marine.sea_surface_temperature : null,
+          windSpeed: wind ? wind.wind_speed_10m : null,
+          windDir: wind ? wind.wind_direction_10m : null,
+          airTemp: wind ? wind.temperature_2m : null
+        };
+      }
+      MARINE_CACHE[key] = { ts: Date.now(), data: data };
+      return data;
+    });
+  }
+  function renderMarineSection(lat, lon){
+    var myToken = ++marineToken;
+    miBody.insertAdjacentHTML("beforeend",
+      '<div class="marine-box" id="marineBox"><div class="marine-head">🌊 Морская обстановка (сейчас)</div>' +
+      '<div class="marine-body loading">Загрузка…</div></div>');
+    fetchMarine(lat, lon).then(function(data){
+      if (myToken !== marineToken) return;
+      var box = document.getElementById("marineBox");
+      if (!box) return;
+      var body = box.querySelector(".marine-body");
+      if (!data || !data.ok){
+        body.className = "marine-body marine-error";
+        body.textContent = (data && data.reason === "land")
+          ? "Нет морских данных для этой точки (похоже, это суша или прибрежная зона вне покрытия модели)."
+          : "Не удалось загрузить морскую обстановку — попробуйте позже.";
+        return;
+      }
+      body.className = "marine-body";
+      var rows = "";
+      if (data.waveHeight !== null && data.waveHeight !== undefined){
+        rows += '<div class="marine-row"><span class="mr-ic">〰️</span><span class="mr-label">Волны:</span>' +
+          '<span class="mr-val">' + data.waveHeight.toFixed(1) + ' м' +
+          (data.wavePeriod != null ? ', период ' + data.wavePeriod.toFixed(1) + ' с' : '') +
+          (data.waveDir != null ? ', ' + compassDir(data.waveDir) : '') + '</span></div>';
+      }
+      if (data.waterTemp !== null && data.waterTemp !== undefined){
+        rows += '<div class="marine-row"><span class="mr-ic">🌡️</span><span class="mr-label">Вода:</span>' +
+          '<span class="mr-val">' + data.waterTemp.toFixed(1) + ' °C</span></div>';
+      }
+      if (data.windSpeed !== null && data.windSpeed !== undefined){
+        rows += '<div class="marine-row"><span class="mr-ic">💨</span><span class="mr-label">Ветер:</span>' +
+          '<span class="mr-val">' + data.windSpeed.toFixed(1) + ' м/с' +
+          (data.windDir != null ? ', ' + compassDir(data.windDir) : '') + '</span></div>';
+      }
+      if (data.airTemp !== null && data.airTemp !== undefined){
+        rows += '<div class="marine-row"><span class="mr-ic">🌤️</span><span class="mr-label">Воздух:</span>' +
+          '<span class="mr-val">' + data.airTemp.toFixed(1) + ' °C</span></div>';
+      }
+      if (!rows){
+        body.className = "marine-body marine-error";
+        body.textContent = "Данные по этой точке недоступны.";
+        return;
+      }
+      body.innerHTML = rows;
+      var timeLabel = data.time ? String(data.time).replace("T", " ") : "";
+      box.insertAdjacentHTML("beforeend",
+        '<div class="marine-foot">Открытые данные <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a>' +
+        (timeLabel ? " · на " + escapeHtml(timeLabel) + " (местное время района)" : "") +
+        " · координаты центра района, не точная точка промысла</div>");
+    });
+  }
+
   function parseCoordInput(text){
     var m = String(text || "").trim().match(/(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)/);
     if (!m) return null;
@@ -4667,6 +4816,8 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
     });
     if (!zonesOn){ map.addLayer(zonesLayer); zonesOn = true; toggleZonesBtn.classList.remove("off"); }
     map.flyToBounds([[z.bbox[0], z.bbox[2]], [z.bbox[1], z.bbox[3]]], { maxZoom: 6 });
+    var dvCentroid = bboxCentroid(z.bbox);
+    renderMarineSection(dvCentroid[0], dvCentroid[1]);
   }
 
   function openBucketZoneInfo(id, entry){
@@ -4689,6 +4840,8 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
     }
     if (!bucketsOn){ map.addLayer(bucketsLayer); bucketsOn = true; toggleBucketsBtn.classList.remove("off"); }
     map.flyToBounds([[z.bbox[0], z.bbox[2]], [z.bbox[1], z.bbox[3]]], { maxZoom: 6 });
+    var bucketCentroid = bboxCentroid(z.bbox);
+    renderMarineSection(bucketCentroid[0], bucketCentroid[1]);
   }
 
   miClose.addEventListener("click", function(){ mapInfo.classList.remove("open"); });
@@ -4885,6 +5038,14 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
   var railIconsEl3 = document.getElementById("railIcons");
 
   var ENTRIES = [
+    {
+      tag: "Этап 7",
+      title: "Морская обстановка прямо в карточке района",
+      items: [
+        "При открытии карточки района (точного ДВ или укрупнённого) подгружаются текущие волнение, температура воды, ветер и температура воздуха для центра района",
+        "Данные — из открытого сервиса Open-Meteo, без ключей и без сбора статистики; для точек на суше корректно показывается «нет морских данных»"
+      ]
+    },
     {
       tag: "Этап 6",
       title: "Определение района по координатам, избранное, печать, данные в JSON",
