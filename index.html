@@ -1187,6 +1187,7 @@
   .coord-tool button.active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
   .coord-tool .ct-result{font-size:.78rem;color:var(--ink-muted);width:100%;}
   .coord-tool .ct-result strong{color:var(--ink);}
+  .measure-tool{border-top:none;padding-top:0;margin-top:0;}
 
   /* ---------- marine conditions box (in zone card) ---------- */
   .marine-box{
@@ -1358,6 +1359,11 @@
         <button type="button" id="coordFindBtn">Найти район</button>
         <button type="button" id="coordClickBtn" title="Кликните по карте, чтобы определить район в этой точке">Найти по клику на карте</button>
         <span class="ct-result" id="coordResult"></span>
+      </div>
+      <div class="coord-tool measure-tool">
+        <button type="button" id="measureToggleBtn" title="Кликните две точки на карте, чтобы узнать расстояние и курс между ними">Измерить расстояние</button>
+        <button type="button" id="measureClearBtn" title="Очистить измерение">Очистить</button>
+        <span class="ct-result" id="measureResult"></span>
       </div>
       <div class="map-canvas-wrap" id="mapCanvasWrap">
         <div id="leafletMap"></div>
@@ -4613,12 +4619,16 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
   var coordFindBtn = document.getElementById("coordFindBtn");
   var coordClickBtn = document.getElementById("coordClickBtn");
   var coordResult = document.getElementById("coordResult");
+  var measureToggleBtn = document.getElementById("measureToggleBtn");
+  var measureClearBtn = document.getElementById("measureClearBtn");
+  var measureResult = document.getElementById("measureResult");
 
   var DEFAULT_CENTER = [40, 30], DEFAULT_ZOOM = 3;
   var map = null, zonesLayer = null, bucketsLayer = null, portsLayer = null, portMarkers = null, tileLayer = null;
   var portsOn = true, zonesOn = true, bucketsOn = false, built = false;
   var coordReadout = document.getElementById("mapCoordReadout");
   var locateMarker = null, clickLocateMode = false;
+  var measureMode = false, measurePoints = [], measureMarkerA = null, measureMarkerB = null, measureLine = null;
 
   var LIGHT_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
   var DARK_TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png";
@@ -4731,8 +4741,10 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
     portsLayer.addTo(map);
 
     map.on("click", function(e){
+      var lat = e.latlng.lat, lon = ((e.latlng.lng % 360) + 540) % 360 - 180;
+      if (measureMode){ handleMeasureClick(lat, lon); return; }
       if (!clickLocateMode) return;
-      runCoordLookup(e.latlng.lat, ((e.latlng.lng % 360) + 540) % 360 - 180);
+      runCoordLookup(lat, lon);
       setClickLocateMode(false);
     });
 
@@ -4741,6 +4753,7 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
 
   /* ---------- coordinate → район lookup ---------- */
   function setClickLocateMode(on){
+    if (on) setMeasureMode(false);
     clickLocateMode = on;
     coordClickBtn.classList.toggle("active", on);
     coordClickBtn.textContent = on ? "Кликните по карте…" : "Найти по клику на карте";
@@ -4781,6 +4794,77 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
     if (ev.key === "Enter") coordFindBtn.click();
   });
   coordClickBtn.addEventListener("click", function(){ setClickLocateMode(!clickLocateMode); });
+
+  /* ---------- measure distance/course between two points ---------- */
+  function haversineNm(lat1, lon1, lat2, lon2){
+    var R = 3440.065; /* nautical miles */
+    var toRad = Math.PI / 180;
+    var dLat = (lat2 - lat1) * toRad;
+    var dLon = (lon2 - lon1) * toRad;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+  function initialBearing(lat1, lon1, lat2, lon2){
+    var toRad = Math.PI / 180, toDeg = 180 / Math.PI;
+    var y = Math.sin((lon2 - lon1) * toRad) * Math.cos(lat2 * toRad);
+    var x = Math.cos(lat1 * toRad) * Math.sin(lat2 * toRad) -
+      Math.sin(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.cos((lon2 - lon1) * toRad);
+    var brng = Math.atan2(y, x) * toDeg;
+    return (brng + 360) % 360;
+  }
+  function setMeasureMode(on){
+    if (on) setClickLocateMode(false);
+    measureMode = on;
+    measureToggleBtn.classList.toggle("active", on);
+    measureToggleBtn.textContent = on
+      ? (measurePoints.length ? "Кликните вторую точку…" : "Кликните первую точку…")
+      : "Измерить расстояние";
+    if (map){
+      var el = map.getContainer();
+      if (el) el.style.cursor = on ? "crosshair" : "";
+    }
+  }
+  function handleMeasureClick(lat, lon){
+    if (measurePoints.length === 0){
+      if (measureLine){ map.removeLayer(measureLine); measureLine = null; }
+      if (measureMarkerA){ map.removeLayer(measureMarkerA); measureMarkerA = null; }
+      if (measureMarkerB){ map.removeLayer(measureMarkerB); measureMarkerB = null; }
+      measurePoints = [[lat, lon]];
+      measureMarkerA = L.circleMarker([lat, lon], { radius: 6, color: "#3b7ddb", weight: 2, fillColor: "#3b7ddb", fillOpacity: .65 }).addTo(map);
+      measureResult.textContent = "Точка A: " + toDMS(lat, true) + "  " + toDMS(lon, false) + " — кликните вторую точку на карте";
+      setMeasureMode(true);
+    } else {
+      measurePoints.push([lat, lon]);
+      measureMarkerB = L.circleMarker([lat, lon], { radius: 6, color: "#1fae6b", weight: 2, fillColor: "#1fae6b", fillOpacity: .65 }).addTo(map);
+      measureLine = L.polyline(measurePoints, { color: "#e2685c", weight: 2, dashArray: "6 4" }).addTo(map);
+      var a = measurePoints[0], b = measurePoints[1];
+      var nm = haversineNm(a[0], a[1], b[0], b[1]);
+      var km = nm * 1.852;
+      var brng = initialBearing(a[0], a[1], b[0], b[1]);
+      measureResult.innerHTML = "Точка A → Точка B: <strong>" + nm.toFixed(1) + " мор. мили</strong> (" +
+        km.toFixed(1) + " км) · курс <strong>" + Math.round(brng) + "°</strong> (" + compassDir(brng) + ")";
+      measurePoints = [];
+      setMeasureMode(false);
+    }
+  }
+  function clearMeasure(){
+    measurePoints = [];
+    if (measureMarkerA){ map.removeLayer(measureMarkerA); measureMarkerA = null; }
+    if (measureMarkerB){ map.removeLayer(measureMarkerB); measureMarkerB = null; }
+    if (measureLine){ map.removeLayer(measureLine); measureLine = null; }
+    measureResult.textContent = "";
+    setMeasureMode(false);
+  }
+  measureToggleBtn.addEventListener("click", function(){
+    if (!built) buildMap();
+    if (measureMode){ setMeasureMode(false); } else { setMeasureMode(true); }
+  });
+  measureClearBtn.addEventListener("click", function(){
+    if (!built) buildMap();
+    clearMeasure();
+  });
 
   /* ---------- info panel (reuses the app's side-panel UI) ---------- */
   function openPortInfo(idx){
@@ -5038,6 +5122,14 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
   var railIconsEl3 = document.getElementById("railIcons");
 
   var ENTRIES = [
+    {
+      tag: "Этап 8",
+      title: "Расстояние и курс между двумя точками на карте",
+      items: [
+        "На карте — кнопка «Измерить расстояние»: кликните две точки, и между ними появится линия, расстояние в морских милях (и километрах) и курс в градусах с указанием стороны света",
+        "Кнопка «Очистить» убирает метки и линию измерения"
+      ]
+    },
     {
       tag: "Этап 7",
       title: "Морская обстановка прямо в карточке района",
