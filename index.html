@@ -2355,6 +2355,7 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
   var coordReadout = document.getElementById("mapCoordReadout");
   var locateMarker = null, clickLocateMode = false;
   var measureMode = false, measurePoints = [], measureMarkerA = null, measureMarkerB = null, measureLine = null;
+  var PICK_CURSOR = 'url("data:image/svg+xml;utf8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2226%22%20height=%2226%22%20viewBox=%220%200%2026%2026%22%3E%3Cpath%20d=%22M2%202%20L2%2022%20L7.5%2017.5%20L11%2025%20L15%2023%20L11.5%2015.5%20L19%2015.5%20Z%22%20fill=%22%23e2685c%22%20stroke=%22white%22%20stroke-width=%221.4%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E") 3 3, crosshair';
 
   var LIGHT_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
   var DARK_TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png";
@@ -2485,7 +2486,7 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
     coordClickBtn.textContent = on ? "Кликните по карте…" : "Найти по клику на карте";
     if (map){
       var el = map.getContainer();
-      if (el) el.style.cursor = on ? "crosshair" : "";
+      if (el) el.style.cursor = on ? PICK_CURSOR : "";
     }
   }
   function runCoordLookup(lat, lon){
@@ -2549,7 +2550,7 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
       : "Измерить расстояние";
     if (map){
       var el = map.getContainer();
-      if (el) el.style.cursor = on ? "crosshair" : "";
+      if (el) el.style.cursor = on ? PICK_CURSOR : "";
     }
   }
   function handleMeasureClick(lat, lon){
@@ -2848,6 +2849,13 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
   var railIconsEl3 = document.getElementById("railIcons");
 
   var ENTRIES = [
+    {
+      tag: "Этап 10",
+      title: "Курсор-стрелка при выборе точки на карте",
+      items: [
+        "В режимах «Найти по клику на карте» и «Измерить расстояние» курсор над картой теперь показывается в виде заметной цветной стрелки вместо обычного перекрестия — понятнее видно, что можно кликнуть по нужной точке"
+      ]
+    },
     {
       tag: "Этап 9",
       title: "Более точные границы промысловых районов на карте",
