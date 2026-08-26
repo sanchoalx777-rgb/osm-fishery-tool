@@ -1188,6 +1188,29 @@
   .coord-tool .ct-result{font-size:.78rem;color:var(--ink-muted);width:100%;}
   .coord-tool .ct-result strong{color:var(--ink);}
   .measure-tool{border-top:none;padding-top:0;margin-top:0;}
+  .nearest-tool{border-top:none;padding-top:0;margin-top:0;}
+  .nearest-list{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    margin-top:-4px;
+  }
+  .nearest-item{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    font-size:.8rem;
+    padding:6px 10px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    cursor:pointer;
+    background:var(--surface);
+  }
+  .nearest-item:hover{border-color:var(--accent);}
+  .nearest-item .ni-rank{flex:none;color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;width:1.2em;}
+  .nearest-item .ni-name{flex:1;color:var(--ink);}
+  .nearest-item .ni-dist{flex:none;font-family:"IBM Plex Mono",monospace;color:var(--ink-muted);}
+  #shareCoordBtn{display:none;}
 
   /* ---------- marine conditions box (in zone card) ---------- */
   .marine-box{
@@ -1358,6 +1381,7 @@
         <input type="text" id="coordInput" autocomplete="off" spellcheck="false" placeholder="Координаты: 43.115, 131.885" aria-label="Координаты для поиска района">
         <button type="button" id="coordFindBtn">Найти район</button>
         <button type="button" id="coordClickBtn" title="Кликните по карте, чтобы определить район в этой точке">Найти по клику на карте</button>
+        <button type="button" id="shareCoordBtn" title="Скопировать ссылку на эту точку">🔗 Ссылка на точку</button>
         <span class="ct-result" id="coordResult"></span>
       </div>
       <div class="coord-tool measure-tool">
@@ -1365,6 +1389,12 @@
         <button type="button" id="measureClearBtn" title="Очистить измерение">Очистить</button>
         <span class="ct-result" id="measureResult"></span>
       </div>
+      <div class="coord-tool nearest-tool">
+        <button type="button" id="nearestToggleBtn" title="Кликните точку на карте, чтобы увидеть ближайшие порты">Ближайшие порты</button>
+        <button type="button" id="nearestClearBtn" title="Очистить">Очистить</button>
+        <span class="ct-result" id="nearestResult"></span>
+      </div>
+      <div class="nearest-list" id="nearestList"></div>
       <div class="map-canvas-wrap" id="mapCanvasWrap">
         <div id="leafletMap"></div>
         <div class="map-coord-readout" id="mapCoordReadout">—</div>
@@ -2264,6 +2294,71 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
       return data;
     });
   }
+  /* ---------- sunrise / sunset (standard solar-position formulas, computed client-side) ---------- */
+  var SUN_RAD = Math.PI / 180, SUN_DEG = 180 / Math.PI;
+  var SUN_DAY_MS = 86400000, SUN_J1970 = 2440588, SUN_J2000 = 2451545, SUN_OBLIQ = SUN_RAD * 23.4397;
+  function sunToJulian(date){ return date.getTime() / SUN_DAY_MS - 0.5 + SUN_J1970; }
+  function sunFromJulian(j){ return new Date((j + 0.5 - SUN_J1970) * SUN_DAY_MS); }
+  function sunToDays(date){ return sunToJulian(date) - SUN_J2000; }
+  function sunDeclination(l){ return Math.asin(Math.sin(SUN_OBLIQ) * Math.sin(l)); }
+  function sunMeanAnomaly(d){ return SUN_RAD * (357.5291 + 0.98560028 * d); }
+  function sunEclipticLongitude(m){
+    var c = SUN_RAD * (1.9148 * Math.sin(m) + 0.02 * Math.sin(2 * m) + 0.0003 * Math.sin(3 * m));
+    var p = SUN_RAD * 102.9372;
+    return m + c + p + Math.PI;
+  }
+  function sunJulianCycle(d, lw){ return Math.round(d - 0.0009 - lw / (2 * Math.PI)); }
+  function sunApproxTransit(ht, lw, n){ return 0.0009 + (ht + lw) / (2 * Math.PI) + n; }
+  function sunTransitJulian(ds, m, l){ return SUN_J2000 + ds + 0.0053 * Math.sin(m) - 0.0069 * Math.sin(2 * l); }
+  function sunHourAngle(h, phi, d){
+    var cosH = (Math.sin(h) - Math.sin(phi) * Math.sin(d)) / (Math.cos(phi) * Math.cos(d));
+    return cosH; /* caller checks range before acos */
+  }
+  /* returns { sunrise, sunset } as Date objects (UTC-based), or a string flag "polar-day"/"polar-night" */
+  function computeSunTimes(date, lat, lon){
+    var lw = SUN_RAD * -lon, phi = SUN_RAD * lat, d = sunToDays(date);
+    var n = sunJulianCycle(d, lw), ds = sunApproxTransit(0, lw, n);
+    var m = sunMeanAnomaly(ds), l = sunEclipticLongitude(m), dec = sunDeclination(l);
+    var jNoon = sunTransitJulian(ds, m, l);
+    var h0 = -0.833 * SUN_RAD;
+    var cosH = sunHourAngle(h0, phi, dec);
+    if (cosH > 1) return "polar-night";
+    if (cosH < -1) return "polar-day";
+    var w = Math.acos(cosH);
+    var aSet = sunApproxTransit(w, lw, n);
+    var jSet = sunTransitJulian(aSet, m, l);
+    var jRise = jNoon - (jSet - jNoon);
+    return { sunrise: sunFromJulian(jRise), sunset: sunFromJulian(jSet) };
+  }
+  function fmtLocalApprox(date, lon){
+    /* approximate local time by longitude offset (15°/hour) — not a real timezone lookup */
+    var offsetMin = Math.round(lon / 15 * 60);
+    var t = new Date(date.getTime() + offsetMin * 60000);
+    return pad2(t.getUTCHours()) + ":" + pad2(t.getUTCMinutes());
+  }
+  function renderSunSection(lat, lon){
+    var times = computeSunTimes(new Date(), lat, lon);
+    var html;
+    if (times === "polar-night"){
+      html = '<div class="marine-row"><span class="mr-ic">🌑</span><span class="mr-label">Сегодня:</span>' +
+        '<span class="mr-val">полярная ночь — солнце не восходит</span></div>';
+    } else if (times === "polar-day"){
+      html = '<div class="marine-row"><span class="mr-ic">🌕</span><span class="mr-label">Сегодня:</span>' +
+        '<span class="mr-val">полярный день — солнце не заходит</span></div>';
+    } else {
+      var riseTxt = fmtLocalApprox(times.sunrise, lon);
+      var setTxt = fmtLocalApprox(times.sunset, lon);
+      var lenMs = times.sunset.getTime() - times.sunrise.getTime();
+      var lenH = Math.floor(lenMs / 3600000), lenM = Math.round((lenMs % 3600000) / 60000);
+      html = '<div class="marine-row"><span class="mr-ic">🌅</span><span class="mr-label">Восход:</span><span class="mr-val">' + riseTxt + '</span></div>' +
+        '<div class="marine-row"><span class="mr-ic">🌇</span><span class="mr-label">Закат:</span><span class="mr-val">' + setTxt + '</span></div>' +
+        '<div class="marine-row"><span class="mr-ic">☀️</span><span class="mr-label">Световой день:</span><span class="mr-val">' + lenH + ' ч ' + lenM + ' мин</span></div>';
+    }
+    miBody.insertAdjacentHTML("beforeend",
+      '<div class="marine-box" id="sunBox"><div class="marine-head">🌅 Восход и закат (сегодня)</div>' +
+      '<div class="marine-body">' + html + '</div>' +
+      '<div class="marine-foot">Приблизительное местное время по долготе точки (±15 мин), без учёта часового пояса</div></div>');
+  }
   function renderMarineSection(lat, lon){
     var myToken = ++marineToken;
     miBody.insertAdjacentHTML("beforeend",
@@ -2348,6 +2443,11 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
   var measureToggleBtn = document.getElementById("measureToggleBtn");
   var measureClearBtn = document.getElementById("measureClearBtn");
   var measureResult = document.getElementById("measureResult");
+  var shareCoordBtn = document.getElementById("shareCoordBtn");
+  var nearestToggleBtn = document.getElementById("nearestToggleBtn");
+  var nearestClearBtn = document.getElementById("nearestClearBtn");
+  var nearestResult = document.getElementById("nearestResult");
+  var nearestList = document.getElementById("nearestList");
 
   var DEFAULT_CENTER = [40, 30], DEFAULT_ZOOM = 3;
   var map = null, zonesLayer = null, bucketsLayer = null, portsLayer = null, portMarkers = null, tileLayer = null;
@@ -2355,6 +2455,7 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
   var coordReadout = document.getElementById("mapCoordReadout");
   var locateMarker = null, clickLocateMode = false;
   var measureMode = false, measurePoints = [], measureMarkerA = null, measureMarkerB = null, measureLine = null;
+  var nearestMode = false, nearestMarker = null;
   var PICK_CURSOR = 'url("data:image/svg+xml;utf8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2226%22%20height=%2226%22%20viewBox=%220%200%2026%2026%22%3E%3Cpath%20d=%22M2%202%20L2%2022%20L7.5%2017.5%20L11%2025%20L15%2023%20L11.5%2015.5%20L19%2015.5%20Z%22%20fill=%22%23e2685c%22%20stroke=%22white%22%20stroke-width=%221.4%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E") 3 3, crosshair';
 
   var LIGHT_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -2470,6 +2571,7 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
     map.on("click", function(e){
       var lat = e.latlng.lat, lon = ((e.latlng.lng % 360) + 540) % 360 - 180;
       if (measureMode){ handleMeasureClick(lat, lon); return; }
+      if (nearestMode){ handleNearestClick(lat, lon); return; }
       if (!clickLocateMode) return;
       runCoordLookup(lat, lon);
       setClickLocateMode(false);
@@ -2480,7 +2582,7 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
 
   /* ---------- coordinate → район lookup ---------- */
   function setClickLocateMode(on){
-    if (on) setMeasureMode(false);
+    if (on){ setMeasureMode(false); setNearestMode(false); }
     clickLocateMode = on;
     coordClickBtn.classList.toggle("active", on);
     coordClickBtn.textContent = on ? "Кликните по карте…" : "Найти по клику на карте";
@@ -2493,6 +2595,7 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
     if (!built) buildMap();
     if (locateMarker) map.removeLayer(locateMarker);
     locateMarker = L.circleMarker([lat, lon], { radius: 7, color: "#e2685c", weight: 2, fillColor: "#e2685c", fillOpacity: .5 }).addTo(map);
+    shareCoordBtn.style.display = "";
     var hit = findZoneAt(lat, lon);
     var coordTxt = toDMS(lat, true) + "  " + toDMS(lon, false);
     if (!hit){
@@ -2522,6 +2625,46 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
   });
   coordClickBtn.addEventListener("click", function(){ setClickLocateMode(!clickLocateMode); });
 
+  /* ---------- share links ---------- */
+  function buildShareUrl(params){
+    var base = location.origin + location.pathname;
+    var qs = Object.keys(params).map(function(k){
+      return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]);
+    }).join("&");
+    return base + "?" + qs;
+  }
+  function fallbackCopy(text){
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand("copy"); } catch (e){}
+    document.body.removeChild(ta);
+  }
+  function copyShareLink(url, btnEl){
+    var restore = btnEl.textContent;
+    function done(){
+      btnEl.textContent = "Скопировано ✓";
+      setTimeout(function(){ btnEl.textContent = restore; }, 1800);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(done).catch(function(){ fallbackCopy(url); done(); });
+    } else {
+      fallbackCopy(url);
+      done();
+    }
+  }
+  shareCoordBtn.addEventListener("click", function(){
+    if (!locateMarker) return;
+    var ll = locateMarker.getLatLng();
+    var lon = ((ll.lng % 360) + 540) % 360 - 180;
+    var url = buildShareUrl({ lat: ll.lat.toFixed(5), lon: lon.toFixed(5) });
+    copyShareLink(url, shareCoordBtn);
+  });
+
   /* ---------- measure distance/course between two points ---------- */
   function haversineNm(lat1, lon1, lat2, lon2){
     var R = 3440.065; /* nautical miles */
@@ -2542,7 +2685,7 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
     return (brng + 360) % 360;
   }
   function setMeasureMode(on){
-    if (on) setClickLocateMode(false);
+    if (on){ setClickLocateMode(false); setNearestMode(false); }
     measureMode = on;
     measureToggleBtn.classList.toggle("active", on);
     measureToggleBtn.textContent = on
@@ -2593,15 +2736,74 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
     clearMeasure();
   });
 
+  /* ---------- nearest ports ---------- */
+  function findNearestPorts(lat, lon, n){
+    var arr = PORTS.map(function(p, idx){
+      return { idx: idx, name: p[1], dist: haversineNm(lat, lon, p[3], p[4]) };
+    });
+    arr.sort(function(a, b){ return a.dist - b.dist; });
+    return arr.slice(0, n);
+  }
+  function renderNearestPorts(lat, lon){
+    var top = findNearestPorts(lat, lon, 5);
+    nearestResult.innerHTML = toDMS(lat, true) + "  " + toDMS(lon, false) + " — ближайшие порты:";
+    nearestList.innerHTML = top.map(function(p, i){
+      return '<div class="nearest-item" data-idx="' + p.idx + '">' +
+        '<span class="ni-rank">' + (i + 1) + '</span>' +
+        '<span class="ni-name">' + escapeHtml(p.name) + '</span>' +
+        '<span class="ni-dist">' + p.dist.toFixed(1) + ' мор. мили</span></div>';
+    }).join("");
+    Array.prototype.forEach.call(nearestList.querySelectorAll(".nearest-item"), function(el){
+      el.addEventListener("click", function(){
+        openPortInfo(parseInt(el.getAttribute("data-idx"), 10));
+      });
+    });
+  }
+  function setNearestMode(on){
+    if (on){ setClickLocateMode(false); setMeasureMode(false); }
+    nearestMode = on;
+    nearestToggleBtn.classList.toggle("active", on);
+    nearestToggleBtn.textContent = on ? "Кликните точку на карте…" : "Ближайшие порты";
+    if (map){
+      var el = map.getContainer();
+      if (el) el.style.cursor = on ? PICK_CURSOR : "";
+    }
+  }
+  function handleNearestClick(lat, lon){
+    if (!built) buildMap();
+    if (nearestMarker) map.removeLayer(nearestMarker);
+    nearestMarker = L.circleMarker([lat, lon], { radius: 6, color: "#e2685c", weight: 2, fillColor: "#e2685c", fillOpacity: .5 }).addTo(map);
+    renderNearestPorts(lat, lon);
+    setNearestMode(false);
+  }
+  function clearNearest(){
+    if (nearestMarker){ map.removeLayer(nearestMarker); nearestMarker = null; }
+    nearestResult.textContent = "";
+    nearestList.innerHTML = "";
+    setNearestMode(false);
+  }
+  nearestToggleBtn.addEventListener("click", function(){
+    if (!built) buildMap();
+    if (nearestMode){ setNearestMode(false); } else { setNearestMode(true); }
+  });
+  nearestClearBtn.addEventListener("click", function(){
+    if (!built) buildMap();
+    clearNearest();
+  });
+
   /* ---------- info panel (reuses the app's side-panel UI) ---------- */
   function openPortInfo(idx){
     var p = PORTS[idx];
     mapInfo.classList.add("open");
     miTitle.textContent = p[1];
     miMeta.textContent = "код " + p[0] + (p[2] ? " · регион " + p[2] : "") + " · " + p[3].toFixed(4) + ", " + p[4].toFixed(4);
-    miBody.innerHTML = '<button type="button" class="mi-open-btn" id="miOpenPort">Открыть в «Порты»</button>';
+    miBody.innerHTML = '<button type="button" class="mi-open-btn" id="miOpenPort">Открыть в «Порты»</button>' +
+      '<button type="button" class="mi-open-btn" id="miSharePort">🔗 Скопировать ссылку на порт</button>';
     document.getElementById("miOpenPort").addEventListener("click", function(){
       window.__gotoCatalogSearch("ports", p[0]);
+    });
+    document.getElementById("miSharePort").addEventListener("click", function(ev){
+      copyShareLink(buildShareUrl({ port: p[0] }), ev.currentTarget);
     });
     if (!portsOn){ map.addLayer(portsLayer); portsOn = true; togglePortsBtn.classList.remove("off"); }
     map.setView([p[3], p[4]], Math.max(map.getZoom(), 8));
@@ -2616,7 +2818,8 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
     miBody.innerHTML =
       '<p>Граница упрощена до прямых линий по ' + z.points_n + ' опорным точкам приказа. Точные координаты — в тексте документа.</p>' +
       (z.catalogCode ? '<button type="button" class="mi-open-btn" id="miOpenDvCat">Открыть в «Районы добычи ВБР»</button>' : '') +
-      '<button type="button" class="mi-open-btn" id="miOpenDvDocs">Открыть текст приказа № 285</button>';
+      '<button type="button" class="mi-open-btn" id="miOpenDvDocs">Открыть текст приказа № 285</button>' +
+      '<button type="button" class="mi-open-btn" id="miShareDv">🔗 Скопировать ссылку на район</button>';
     if (z.catalogCode){
       document.getElementById("miOpenDvCat").addEventListener("click", function(){
         window.__gotoCatalogSearch("catch_areas", z.catalogCode);
@@ -2625,10 +2828,14 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
     document.getElementById("miOpenDvDocs").addEventListener("click", function(){
       if (window.OSM_DOCS) window.OSM_DOCS.enter();
     });
+    document.getElementById("miShareDv").addEventListener("click", function(ev){
+      copyShareLink(buildShareUrl({ dv: z.id }), ev.currentTarget);
+    });
     if (!zonesOn){ map.addLayer(zonesLayer); zonesOn = true; toggleZonesBtn.classList.remove("off"); }
     map.flyToBounds([[z.bbox[0], z.bbox[2]], [z.bbox[1], z.bbox[3]]], { maxZoom: 6 });
     var dvCentroid = bboxCentroid(z.bbox);
     renderMarineSection(dvCentroid[0], dvCentroid[1]);
+    renderSunSection(dvCentroid[0], dvCentroid[1]);
   }
 
   function openBucketZoneInfo(id, entry){
@@ -2643,16 +2850,21 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
       miMeta.textContent = "Укрупнённый район справочника «Районы добычи ВБР» · граница приблизительная";
     }
     miBody.innerHTML = '<p>Показана общая граница района/моря, а не точный контур конкретного кода справочника. Для точных промысловых районов Дальнего Востока используйте слой «Районы вылова (ДВ)».</p>' +
-      (entry ? '<button type="button" class="mi-open-btn" id="miOpenBucketCat">Открыть в «Районы добычи ВБР»</button>' : '');
+      (entry ? '<button type="button" class="mi-open-btn" id="miOpenBucketCat">Открыть в «Районы добычи ВБР»</button>' : '') +
+      '<button type="button" class="mi-open-btn" id="miShareBucket">🔗 Скопировать ссылку на район</button>';
     if (entry){
       document.getElementById("miOpenBucketCat").addEventListener("click", function(){
         window.__gotoCatalogSearch("catch_areas", entry.code);
       });
     }
+    document.getElementById("miShareBucket").addEventListener("click", function(ev){
+      copyShareLink(buildShareUrl({ bucket: z.id }), ev.currentTarget);
+    });
     if (!bucketsOn){ map.addLayer(bucketsLayer); bucketsOn = true; toggleBucketsBtn.classList.remove("off"); }
     map.flyToBounds([[z.bbox[0], z.bbox[2]], [z.bbox[1], z.bbox[3]]], { maxZoom: 6 });
     var bucketCentroid = bboxCentroid(z.bbox);
     renderMarineSection(bucketCentroid[0], bucketCentroid[1]);
+    renderSunSection(bucketCentroid[0], bucketCentroid[1]);
   }
 
   miClose.addEventListener("click", function(){ mapInfo.classList.remove("open"); });
@@ -2776,6 +2988,30 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
   window.OSM_MAP = { enter: enter, exit: exit, gotoZone: gotoZone, gotoBucket: gotoBucket, setDarkTiles: setDarkTiles };
   if (window.__registerMode) window.__registerMode("map", exit);
 
+  /* ---------- restore state from a shared link (?dv=, ?bucket=, ?port=, ?lat=&lon=) ---------- */
+  (function restoreFromShareLink(){
+    var qs;
+    try { qs = new URLSearchParams(location.search); } catch (e){ return; }
+    if (qs.has("dv") && DV_BY_ID[qs.get("dv")]){
+      gotoZone(qs.get("dv"));
+    } else if (qs.has("bucket") && BUCKET_BY_ID[qs.get("bucket")]){
+      gotoBucket(qs.get("bucket"));
+    } else if (qs.has("port")){
+      var code = qs.get("port"), idx = -1;
+      for (var i = 0; i < PORTS.length; i++){ if (String(PORTS[i][0]) === code){ idx = i; break; } }
+      if (idx !== -1){
+        enter();
+        setTimeout(function(){ openPortInfo(idx); }, 60);
+      }
+    } else if (qs.has("lat") && qs.has("lon")){
+      var lat = parseFloat(qs.get("lat")), lon = parseFloat(qs.get("lon"));
+      if (!isNaN(lat) && !isNaN(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180){
+        enter();
+        setTimeout(function(){ runCoordLookup(lat, lon); }, 60);
+      }
+    }
+  })();
+
   /* ---------- documents & additional information section ---------- */
   function docsEnter(){
     if (window.__exitOtherModes) window.__exitOtherModes("docs");
@@ -2849,6 +3085,15 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
   var railIconsEl3 = document.getElementById("railIcons");
 
   var ENTRIES = [
+    {
+      tag: "Этап 11",
+      title: "Ближайшие порты, восход/закат и ссылки на точку/район",
+      items: [
+        "На карте — кнопка «Ближайшие порты»: кликните точку, и появится список из 5 ближайших портов с расстоянием в морских милях; клик по порту в списке открывает его карточку",
+        "В карточке района (и точного ДВ-района, и укрупнённого района справочника) — блок «Восход и закат» на сегодня, с продолжительностью светового дня",
+        "Кнопка «🔗 Ссылка на точку» рядом с полем координат и такие же кнопки в карточках района и порта — копируют ссылку, которая при открытии сразу показывает ту же точку, район или порт"
+      ]
+    },
     {
       tag: "Этап 10",
       title: "Курсор-стрелка при выборе точки на карте",
