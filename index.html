@@ -46,8 +46,8 @@
     --map-ocean:#dce7f0;
     --map-land:#93a9b8;
     --map-land-stroke:#77909f;
-    --zone-gray:#8b95a4;
-    --zone-gray-2:#aab2bd;
+    --zone-gray:#2f8f7a;
+    --zone-gray-2:#c98a2e;
     --shadow:0 1px 2px rgba(16,34,58,.06),0 8px 24px -12px rgba(16,34,58,.2);
     --radius:10px;
     color-scheme:light;
@@ -84,8 +84,8 @@
       --map-ocean:#333e4c;
       --map-land:#4a5566;
       --map-land-stroke:#5c6773;
-      --zone-gray:#cdd3da;
-      --zone-gray-2:#98a1ac;
+      --zone-gray:#4fb89d;
+      --zone-gray-2:#e0ab5c;
       --shadow:0 1px 2px rgba(0,0,0,.25),0 8px 28px -12px rgba(0,0,0,.45);
       color-scheme:dark;
     }
@@ -121,8 +121,8 @@
     --map-ocean:#333e4c;
     --map-land:#4a5566;
     --map-land-stroke:#5c6773;
-    --zone-gray:#cdd3da;
-    --zone-gray-2:#98a1ac;
+    --zone-gray:#4fb89d;
+    --zone-gray-2:#e0ab5c;
     --shadow:0 1px 2px rgba(0,0,0,.25),0 8px 28px -12px rgba(0,0,0,.45);
     color-scheme:dark;
   }
@@ -680,6 +680,128 @@
     position:relative;
     z-index:1000;
   }
+  .map-topline{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .map-topline .map-heading{flex:1;}
+  .map-info-btn{
+    flex:none;
+    width:26px;height:26px;
+    border-radius:50%;
+    border:1px solid var(--border-strong);
+    background:var(--surface);
+    color:var(--ink-muted);
+    cursor:pointer;
+    font-size:.9rem;
+    line-height:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .map-info-btn:hover{border-color:var(--accent);color:var(--accent-text);}
+  .map-info-tooltip{
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    background:var(--surface);
+    box-shadow:var(--shadow);
+    padding:12px 14px;
+    font-size:.78rem;
+    color:var(--ink-faint);
+    line-height:1.55;
+  }
+  .map-info-tooltip[hidden]{display:none;}
+  .map-info-tooltip p{margin:0 0 8px;}
+  .map-info-tooltip p:last-child{margin-bottom:0;}
+  /* ---------- floating map controls (over the canvas, marinetrack-style) ---------- */
+  .map-float{
+    position:absolute;
+    top:10px;
+    right:10px;
+    z-index:1000;
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:8px;
+    max-width:min(300px, calc(100% - 20px));
+  }
+  .map-float-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+  .map-float-btn{
+    font-family:"Roboto",sans-serif;
+    font-size:.78rem;
+    font-weight:500;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    border:1px solid var(--border-strong);
+    background:var(--surface);
+    color:var(--ink);
+    border-radius:999px;
+    padding:7px 13px;
+    cursor:pointer;
+    box-shadow:var(--shadow);
+    white-space:nowrap;
+  }
+  .map-float-btn:hover{border-color:var(--accent);color:var(--accent-text);}
+  .map-float-btn.active{border-color:var(--accent);color:var(--accent-text);background:var(--accent-soft);}
+  .map-float-btn .dd-car{font-size:.65rem;opacity:.7;}
+  .map-dropdown{position:relative;}
+  .map-dropdown-panel{
+    position:absolute;
+    top:calc(100% + 6px);
+    right:0;
+    width:280px;
+    max-width:calc(100vw - 40px);
+    max-height:min(64vh, 540px);
+    overflow-y:auto;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    box-shadow:var(--shadow);
+    padding:12px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    z-index:1001;
+  }
+  .map-dropdown-panel[hidden]{display:none;}
+  .map-dropdown-panel .coord-tool{margin-top:0;}
+  .map-dropdown-panel .coord-tool:first-child{border-top:0;padding-top:0;}
+  .map-dropdown-panel .coord-tool input{max-width:none;}
+  .map-toggle-group.vertical{flex-direction:column;gap:5px;}
+  .map-toggle-group.vertical .map-toggle{width:100%;justify-content:flex-start;}
+  .map-legend-hint{font-size:.72rem;color:var(--ink-faint);border-top:1px dashed var(--border);padding-top:8px;margin-top:0;line-height:1.5;}
+  .map-zoom-group.floating{
+    position:absolute;
+    left:10px;
+    bottom:10px;
+    z-index:1000;
+    flex-direction:column;
+    margin-left:0;
+    gap:5px;
+  }
+  .map-zoom-group.floating button{box-shadow:var(--shadow);}
+  @media (max-width:640px){
+    .map-float{
+      position:absolute;
+      top:8px;
+      left:8px;
+      right:8px;
+      max-width:none;
+      align-items:stretch;
+    }
+    .map-float-row{justify-content:flex-start;position:relative;}
+    .map-dropdown{position:static;}
+    .map-dropdown-panel{
+      position:absolute;
+      top:calc(100% + 6px);
+      right:auto;
+      left:0;
+      width:100%;
+      max-width:none;
+    }
+  }
   .map-search{
     position:relative;
     flex:1;
@@ -698,6 +820,7 @@
     outline:0;
   }
   .map-search input:focus{border-color:var(--accent);}
+  .map-float .map-search{flex:none;width:250px;max-width:100%;}
   .map-search-drop{
     position:absolute;
     top:calc(100% + 6px);
@@ -769,8 +892,11 @@
     overflow:hidden;
     background:var(--map-ocean);
     box-shadow:var(--shadow);
-    aspect-ratio:2/1;
-    min-height:440px;
+    height:min(76vh, 880px);
+    min-height:460px;
+  }
+  @media (max-width:640px){
+    .map-canvas-wrap{height:min(64vh, 640px);min-height:380px;}
   }
   #leafletMap{width:100%;height:100%;background:var(--map-ocean);}
   :root[data-theme="dark"] #leafletMap{background:var(--map-ocean);}
@@ -796,6 +922,12 @@
   .leaflet-control-attribution{font-size:.68rem;}
 
   .map-info{
+    position:absolute;
+    top:10px;
+    right:10px;
+    bottom:10px;
+    width:320px;
+    max-width:calc(100% - 20px);
     border:1px solid var(--border);
     border-radius:var(--radius);
     background:var(--surface);
@@ -803,8 +935,13 @@
     padding:14px 16px;
     display:none;
     font-size:.86rem;
+    overflow-y:auto;
+    z-index:1200;
   }
   .map-info.open{display:block;}
+  @media (max-width:640px){
+    .map-info{top:8px;right:8px;left:8px;bottom:8px;width:auto;max-width:none;}
+  }
   .map-info .mi-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px;}
   .map-info h3{margin:0;font-family:"Montserrat",sans-serif;font-size:.98rem;color:var(--ink);}
   .map-info .mi-close{background:none;border:0;color:var(--ink-faint);cursor:pointer;font-size:1.15rem;line-height:1;padding:2px 4px;}
@@ -1412,70 +1549,91 @@
     </div>
 
     <div class="map-wrap" id="mapWrap">
-      <div>
+      <div class="map-topline">
         <h2 class="map-heading">Карта портов и районов добычи ВБР</h2>
-        <p class="map-sub">2140 портов (точные координаты) и 21 промысловый район/подзона Дальневосточного рыбохозяйственного бассейна — границы 20 из 21 района уточнены по данным ведомственной системы мониторинга рыболовства (ЦСМС, globus.cfmc.ru); для 1 района официальная граница ЦСМС не найдена, показана граница по тексту приказа Минсельхоза России № 285 от 06.05.2022. Отдельными слоями — запретные зоны промысла и полный каталог промысловых зон ЦСМС по всему миру (с фильтром по категориям) по тем же данным</p>
+        <button type="button" class="map-info-btn" id="mapInfoBtn" title="Об этой карте" aria-label="Об этой карте">ⓘ</button>
       </div>
-      <div class="map-toolbar">
-        <div class="map-search">
-          <input type="text" id="mapSearchInput" autocomplete="off" spellcheck="false" placeholder="Найти порт или район на карте…" aria-label="Поиск по карте">
-          <div class="map-search-drop" id="mapSearchDrop"></div>
-        </div>
-        <div class="map-toggle-group">
-          <button type="button" class="map-toggle ports" id="togglePorts"><span class="dot"></span>Порты</button>
-          <button type="button" class="map-toggle zones" id="toggleZones"><span class="dot"></span>Районы вылова (ДВ)</button>
-          <button type="button" class="map-toggle buckets off" id="toggleBuckets"><span class="dot"></span>Все районы (справочник)</button>
-          <button type="button" class="map-toggle prohibited off" id="toggleProhibited"><span class="dot"></span>Запретные зоны</button>
-          <button type="button" class="map-toggle world off" id="toggleWorld"><span class="dot"></span>Зоны мира (ЦСМС)</button>
-        </div>
-        <div class="map-zoom-group">
-          <button type="button" id="zoomOutBtn" title="Отдалить" aria-label="Отдалить">−</button>
-          <button type="button" id="zoomInBtn" title="Приблизить" aria-label="Приблизить">+</button>
-          <button type="button" id="zoomResetBtn" title="Сбросить масштаб" aria-label="Сбросить масштаб">⤢</button>
-        </div>
-      </div>
-      <div class="coord-tool">
-        <input type="text" id="coordInput" autocomplete="off" spellcheck="false" placeholder="Координаты: 43.115, 131.885" aria-label="Координаты для поиска района">
-        <button type="button" id="coordFindBtn">Найти район</button>
-        <button type="button" id="coordClickBtn" title="Кликните по карте, чтобы определить район в этой точке">Найти по клику на карте</button>
-        <button type="button" id="shareCoordBtn" title="Скопировать ссылку на эту точку">🔗 Ссылка на точку</button>
-        <span class="ct-result" id="coordResult"></span>
-      </div>
-      <div class="coord-tool measure-tool">
-        <button type="button" id="measureToggleBtn" title="Кликните две точки на карте, чтобы узнать расстояние и курс между ними">Измерить расстояние</button>
-        <button type="button" id="measureClearBtn" title="Очистить измерение">Очистить</button>
-        <span class="ct-result" id="measureResult"></span>
-      </div>
-      <div class="coord-tool nearest-tool">
-        <button type="button" id="nearestToggleBtn" title="Кликните точку на карте, чтобы увидеть ближайшие порты">Ближайшие порты</button>
-        <button type="button" id="nearestClearBtn" title="Очистить">Очистить</button>
-        <span class="ct-result" id="nearestResult"></span>
-      </div>
-      <div class="nearest-list" id="nearestList"></div>
-      <div class="world-cat-panel" id="worldCatPanel" hidden>
-        <div class="world-cat-head">
-          <span class="wc-title">Категории зон ЦСМС по всему миру — какие показывать</span>
-          <button type="button" id="worldCatAllBtn">Выбрать все</button>
-          <button type="button" id="worldCatNoneBtn">Снять все</button>
-        </div>
-        <div class="world-cat-list" id="worldCatList"></div>
+      <div class="map-info-tooltip" id="mapInfoTooltip" hidden>
+        <p>2140 портов (точные координаты) и 21 промысловый район/подзона Дальневосточного рыбохозяйственного бассейна — границы 20 из 21 района уточнены по данным ведомственной системы мониторинга рыболовства (ЦСМС, globus.cfmc.ru); для 1 района официальная граница ЦСМС не найдена, показана граница по тексту приказа Минсельхоза России № 285 от 06.05.2022. Отдельными слоями — запретные зоны промысла и полный каталог промысловых зон ЦСМС по всему миру (с фильтром по категориям) по тем же данным.</p>
+        <p>Слой «Районы вылова (ДВ)» — 21 промысловый район/подзона/подрайон Дальневосточного рыбохозяйственного бассейна по Приложению № 1 к Правилам рыболовства для ДВ бассейна (приказ Минсельхоза России от 06.05.2022 № 285); границы упрощены до прямых линий по опорным точкам приказа — для точных координат обращайтесь к тексту документа (раздел «Документы» на этой странице). Слой «Все районы (справочник)» — укрупнённые границы районов ФАО/морей для всех 394 кодов справочника «Районы добычи ВБР» (включая зарубежные зоны, например Гавайские острова); эти границы приблизительные и показывают только общий океанический/морской район, а не точный контур конкретного кода.</p>
       </div>
       <div class="map-canvas-wrap" id="mapCanvasWrap">
         <div id="leafletMap"></div>
         <div class="map-coord-readout" id="mapCoordReadout">—</div>
-      </div>
-      <div class="map-info" id="mapInfo">
-        <div class="mi-head">
-          <h3 id="miTitle"></h3>
-          <span style="display:flex;gap:2px;flex:none;">
-            <button type="button" class="mi-close" id="miPrint" aria-label="Печать" title="Печать карточки" style="font-size:.95rem;">🖶</button>
-            <button type="button" class="mi-close" id="miClose" aria-label="Закрыть">✕</button>
-          </span>
+
+        <div class="map-float">
+          <div class="map-float-row">
+            <div class="map-search">
+              <input type="text" id="mapSearchInput" autocomplete="off" spellcheck="false" placeholder="Найти порт или район…" aria-label="Поиск по карте">
+              <div class="map-search-drop" id="mapSearchDrop"></div>
+            </div>
+          </div>
+          <div class="map-float-row">
+            <div class="map-dropdown" id="layersDropdown">
+              <button type="button" class="map-float-btn" id="layersToggleBtn">▤ Слои <span class="dd-car">▾</span></button>
+              <div class="map-dropdown-panel" id="layersPanel" hidden>
+                <div class="map-toggle-group vertical">
+                  <button type="button" class="map-toggle ports" id="togglePorts"><span class="dot"></span>Порты</button>
+                  <button type="button" class="map-toggle zones" id="toggleZones"><span class="dot"></span>Районы вылова (ДВ)</button>
+                  <button type="button" class="map-toggle buckets off" id="toggleBuckets"><span class="dot"></span>Все районы (справочник)</button>
+                  <button type="button" class="map-toggle prohibited off" id="toggleProhibited"><span class="dot"></span>Запретные зоны</button>
+                  <button type="button" class="map-toggle world off" id="toggleWorld"><span class="dot"></span>Зоны мира (ЦСМС)</button>
+                </div>
+                <div class="world-cat-panel" id="worldCatPanel" hidden>
+                  <div class="world-cat-head">
+                    <span class="wc-title">Категории зон ЦСМС — какие показывать</span>
+                    <button type="button" id="worldCatAllBtn">Все</button>
+                    <button type="button" id="worldCatNoneBtn">Ничего</button>
+                  </div>
+                  <div class="world-cat-list" id="worldCatList"></div>
+                </div>
+                <p class="map-legend-hint">Цвет слоя показан точкой рядом с его названием — тот же цвет использован для границ этого слоя на карте.</p>
+              </div>
+            </div>
+            <div class="map-dropdown" id="toolsDropdown">
+              <button type="button" class="map-float-btn" id="toolsToggleBtn">🧭 Инструменты <span class="dd-car">▾</span></button>
+              <div class="map-dropdown-panel" id="toolsPanel" hidden>
+                <div class="coord-tool">
+                  <input type="text" id="coordInput" autocomplete="off" spellcheck="false" placeholder="Координаты: 43.115, 131.885" aria-label="Координаты для поиска района">
+                  <button type="button" id="coordFindBtn">Найти район</button>
+                  <button type="button" id="coordClickBtn" title="Кликните по карте, чтобы определить район в этой точке">Найти по клику на карте</button>
+                  <button type="button" id="shareCoordBtn" title="Скопировать ссылку на эту точку">🔗 Ссылка на точку</button>
+                  <span class="ct-result" id="coordResult"></span>
+                </div>
+                <div class="coord-tool measure-tool">
+                  <button type="button" id="measureToggleBtn" title="Кликните две точки на карте, чтобы узнать расстояние и курс между ними">Измерить расстояние</button>
+                  <button type="button" id="measureClearBtn" title="Очистить измерение">Очистить</button>
+                  <span class="ct-result" id="measureResult"></span>
+                </div>
+                <div class="coord-tool nearest-tool">
+                  <button type="button" id="nearestToggleBtn" title="Кликните точку на карте, чтобы увидеть ближайшие порты">Ближайшие порты</button>
+                  <button type="button" id="nearestClearBtn" title="Очистить">Очистить</button>
+                  <span class="ct-result" id="nearestResult"></span>
+                </div>
+                <div class="nearest-list" id="nearestList"></div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="mi-meta" id="miMeta"></div>
-        <div id="miBody"></div>
+
+        <div class="map-zoom-group floating">
+          <button type="button" id="zoomInBtn" title="Приблизить" aria-label="Приблизить">+</button>
+          <button type="button" id="zoomOutBtn" title="Отдалить" aria-label="Отдалить">−</button>
+          <button type="button" id="zoomResetBtn" title="Сбросить масштаб" aria-label="Сбросить масштаб">⤢</button>
+        </div>
+
+        <div class="map-info" id="mapInfo">
+          <div class="mi-head">
+            <h3 id="miTitle"></h3>
+            <span style="display:flex;gap:2px;flex:none;">
+              <button type="button" class="mi-close" id="miPrint" aria-label="Печать" title="Печать карточки" style="font-size:.95rem;">🖶</button>
+              <button type="button" class="mi-close" id="miClose" aria-label="Закрыть">✕</button>
+            </span>
+          </div>
+          <div class="mi-meta" id="miMeta"></div>
+          <div id="miBody"></div>
+        </div>
       </div>
-      <p class="map-note">Слой «Районы вылова (ДВ)» — 21 промысловый район/подзона/подрайон Дальневосточного рыбохозяйственного бассейна по Приложению № 1 к Правилам рыболовства для ДВ бассейна (приказ Минсельхоза России от 06.05.2022 № 285); границы упрощены до прямых линий по опорным точкам приказа — для точных координат обращайтесь к тексту документа (раздел «Документы» на этой странице). Слой «Все районы (справочник)» — укрупнённые границы районов ФАО/морей для всех 394 кодов справочника «Районы добычи ВБР» (включая зарубежные зоны, например Гавайские острова); эти границы приблизительные и показывают только общий океанический/морской район, а не точный контур конкретного кода.</p>
       <p class="map-credit">Картографическая основа: © участники <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></p>
     </div>
 
@@ -2566,6 +2724,47 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
   var nearestClearBtn = document.getElementById("nearestClearBtn");
   var nearestResult = document.getElementById("nearestResult");
   var nearestList = document.getElementById("nearestList");
+  var mapInfoBtn = document.getElementById("mapInfoBtn");
+  var mapInfoTooltip = document.getElementById("mapInfoTooltip");
+  var layersToggleBtn = document.getElementById("layersToggleBtn");
+  var layersPanel = document.getElementById("layersPanel");
+  var toolsToggleBtn = document.getElementById("toolsToggleBtn");
+  var toolsPanel = document.getElementById("toolsPanel");
+
+  /* ---------- compact floating panels: "Слои" / "Инструменты" / "О карте" dropdowns ---------- */
+  function closeAllMapDropdowns(except){
+    if (layersPanel && except !== "layers"){ layersPanel.hidden = true; layersToggleBtn.classList.remove("active"); }
+    if (toolsPanel && except !== "tools"){ toolsPanel.hidden = true; toolsToggleBtn.classList.remove("active"); }
+    if (mapInfoTooltip && except !== "info"){ mapInfoTooltip.hidden = true; mapInfoBtn.classList.remove("active"); }
+  }
+  layersToggleBtn.addEventListener("click", function(ev){
+    ev.stopPropagation();
+    var willOpen = layersPanel.hidden;
+    closeAllMapDropdowns(willOpen ? "layers" : null);
+    layersPanel.hidden = !willOpen;
+    layersToggleBtn.classList.toggle("active", willOpen);
+  });
+  toolsToggleBtn.addEventListener("click", function(ev){
+    ev.stopPropagation();
+    var willOpen = toolsPanel.hidden;
+    closeAllMapDropdowns(willOpen ? "tools" : null);
+    toolsPanel.hidden = !willOpen;
+    toolsToggleBtn.classList.toggle("active", willOpen);
+  });
+  mapInfoBtn.addEventListener("click", function(ev){
+    ev.stopPropagation();
+    var willOpen = mapInfoTooltip.hidden;
+    closeAllMapDropdowns(willOpen ? "info" : null);
+    mapInfoTooltip.hidden = !willOpen;
+    mapInfoBtn.classList.toggle("active", willOpen);
+  });
+  layersPanel.addEventListener("click", function(ev){ ev.stopPropagation(); });
+  toolsPanel.addEventListener("click", function(ev){ ev.stopPropagation(); });
+  document.addEventListener("click", function(ev){
+    if (layersPanel && !layersPanel.hidden && !layersToggleBtn.contains(ev.target)) closeAllMapDropdowns();
+    if (toolsPanel && !toolsPanel.hidden && !toolsToggleBtn.contains(ev.target)) closeAllMapDropdowns();
+    if (mapInfoTooltip && !mapInfoTooltip.hidden && !mapInfoBtn.contains(ev.target)) closeAllMapDropdowns();
+  });
 
   var DEFAULT_CENTER = [40, 30], DEFAULT_ZOOM = 3;
   var map = null, zonesLayer = null, bucketsLayer = null, prohibitedLayer = null, worldLayer = null, portsLayer = null, portMarkers = null, tileLayer = null;
@@ -2603,8 +2802,8 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
   function zoneColors(){
     var dark = isDarkActive();
     return {
-      dv: dark ? "#cdd3da" : "#8b95a4",
-      bucket: dark ? "#98a1ac" : "#aab2bd"
+      dv: dark ? "#4fb89d" : "#2f8f7a",
+      bucket: dark ? "#e0ab5c" : "#c98a2e"
     };
   }
 
@@ -2757,11 +2956,12 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
     if (hit.kind === "dv"){
       coordResult.innerHTML = coordTxt + " — район ДВ: <strong>" + escapeHtml(hit.zone.label + " " + hit.zone.name) + "</strong>" + warning;
       openDvZoneInfo(hit.zone.id);
+      /* openDvZoneInfo already flies the camera to the zone's full bounds — don't override it with a setView here */
     } else {
       coordResult.innerHTML = coordTxt + " — укрупнённый район: <strong>" + escapeHtml(hit.zone.name) + "</strong>" + warning;
       openBucketZoneInfo(hit.zone.id);
+      /* openBucketZoneInfo already flies the camera to the zone's full bounds — don't override it with a setView here */
     }
-    map.setView([lat, lon], Math.max(map.getZoom(), 5));
   }
   coordFindBtn.addEventListener("click", function(){
     var parsed = parseCoordInput(coordInput.value);
