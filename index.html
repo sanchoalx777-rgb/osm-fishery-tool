@@ -2595,7 +2595,7 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
     if (!built) buildMap();
     if (locateMarker) map.removeLayer(locateMarker);
     locateMarker = L.circleMarker([lat, lon], { radius: 7, color: "#e2685c", weight: 2, fillColor: "#e2685c", fillOpacity: .5 }).addTo(map);
-    shareCoordBtn.style.display = "";
+    shareCoordBtn.style.display = "inline-block";
     var hit = findZoneAt(lat, lon);
     var coordTxt = toDMS(lat, true) + "  " + toDMS(lon, false);
     if (!hit){
