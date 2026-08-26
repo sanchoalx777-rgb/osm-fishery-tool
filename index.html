@@ -3271,21 +3271,25 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
 
   /* ---------- toggles ---------- */
   togglePortsBtn.addEventListener("click", function(){
+    if (!built) buildMap();
     portsOn = !portsOn;
     if (portsOn) map.addLayer(portsLayer); else map.removeLayer(portsLayer);
     togglePortsBtn.classList.toggle("off", !portsOn);
   });
   toggleZonesBtn.addEventListener("click", function(){
+    if (!built) buildMap();
     zonesOn = !zonesOn;
     if (zonesOn) map.addLayer(zonesLayer); else map.removeLayer(zonesLayer);
     toggleZonesBtn.classList.toggle("off", !zonesOn);
   });
   toggleBucketsBtn.addEventListener("click", function(){
+    if (!built) buildMap();
     bucketsOn = !bucketsOn;
     if (bucketsOn) map.addLayer(bucketsLayer); else map.removeLayer(bucketsLayer);
     toggleBucketsBtn.classList.toggle("off", !bucketsOn);
   });
   toggleProhibitedBtn.addEventListener("click", function(){
+    if (!built) buildMap();
     prohibitedOn = !prohibitedOn;
     if (prohibitedOn) map.addLayer(prohibitedLayer); else map.removeLayer(prohibitedLayer);
     toggleProhibitedBtn.classList.toggle("off", !prohibitedOn);
