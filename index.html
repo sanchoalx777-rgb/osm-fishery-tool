@@ -231,7 +231,7 @@
     flex-direction:column;
   }
   .wrap{
-    max-width:900px;
+    max-width:1400px;
     width:100%;
     margin:0 auto;
     padding:0 20px 64px;
@@ -247,7 +247,7 @@
     padding:16px 0 14px;
   }
   .topbar .inner{
-    max-width:900px;
+    max-width:1400px;
     margin:0 auto;
     padding:0 20px;
     display:flex;
@@ -581,7 +581,7 @@
   }
 
   footer{
-    max-width:900px;
+    max-width:1400px;
     margin:40px auto 0;
     padding:20px 20px 0;
     border-top:1px solid var(--border);
@@ -612,7 +612,7 @@
   /* ---------- documents page ---------- */
   body.docs-mode .searchbox{display:none;}
   .docs-wrap{
-    max-width:1200px;
+    max-width:1400px;
     width:100%;
     margin:0 auto;
     padding:14px 20px 48px;
@@ -1190,7 +1190,7 @@
   /* ---------- favourites page ---------- */
   body.favs-mode .searchbox{display:none;}
   .favs-wrap{
-    max-width:900px;
+    max-width:1400px;
     width:100%;
     margin:0 auto;
     padding:14px 20px 48px;
@@ -1213,7 +1213,7 @@
   /* ---------- what's new page ---------- */
   body.whatsnew-mode .searchbox{display:none;}
   .whatsnew-wrap{
-    max-width:900px;
+    max-width:1400px;
     width:100%;
     margin:0 auto;
     padding:14px 20px 48px;
@@ -3707,3 +3707,15 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
 })();
 </script>
 
+<script>
+/* Сообщаем родительской странице, что инструмент отрисовался.
+   Событие load фрейма приходит слишком рано: HTML 3 МБ ещё разбирается. */
+(function () {
+  function ping() {
+    try { if (window.parent !== window) window.parent.postMessage({ osmFishery: "ready" }, "*"); }
+    catch (e) {}
+  }
+  requestAnimationFrame(function () { requestAnimationFrame(ping); });
+  window.addEventListener("load", ping);
+})();
+</script>
