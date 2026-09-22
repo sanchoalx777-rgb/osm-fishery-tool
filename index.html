@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Коды ОСМ</title>
 <script>
 (function(){
@@ -678,7 +679,7 @@
   /* ---------- map page ---------- */
   body.map-mode .searchbox{display:none;}
   .map-wrap{
-    max-width:1200px;
+    max-width:none;
     width:100%;
     margin:0 auto;
     padding:14px 20px 48px;
@@ -921,7 +922,7 @@
     :root:not([data-theme="light"]) #leafletMap{background:var(--map-ocean);}
   }
   /* lighten the CartoDB dark basemap so it reads as mid-gray, not near-black */
-  #leafletMap.dark-tiles .leaflet-tile-pane{filter:brightness(1.5) saturate(.85) contrast(.92);}
+  #leafletMap.dark-tiles .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.9) saturate(.8);}
   .leaflet-popup-content-wrapper{background:var(--surface);color:var(--ink);border-radius:10px;box-shadow:var(--shadow);}
   .leaflet-popup-tip{background:var(--surface);}
   .leaflet-tooltip.bucket-label{
@@ -2617,7 +2618,7 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
   var PICK_CURSOR = 'url("data:image/svg+xml;utf8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2226%22%20height=%2226%22%20viewBox=%220%200%2026%2026%22%3E%3Cpath%20d=%22M2%202%20L2%2022%20L7.5%2017.5%20L11%2025%20L15%2023%20L11.5%2015.5%20L19%2015.5%20Z%22%20fill=%22%23e2685c%22%20stroke=%22white%22%20stroke-width=%221.4%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E") 3 3, crosshair';
 
   var LIGHT_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-  var DARK_TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png";
+  var DARK_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
   function isDarkActive(){
     var attr = document.documentElement.getAttribute("data-theme");
@@ -2630,7 +2631,7 @@ window.__PORT_ICON_CLUSTER_B64__ = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABhCAYAAAApxKSd
     if (!map) return;
     if (tileLayer) map.removeLayer(tileLayer);
     tileLayer = dark
-      ? L.tileLayer(DARK_TILE_URL, { maxZoom: 18, subdomains: "abcd" })
+      ? L.tileLayer(DARK_TILE_URL, { maxZoom: 18 })
       : L.tileLayer(LIGHT_TILE_URL, { maxZoom: 18 });
     tileLayer.addTo(map);
     tileLayer.bringToBack();
