@@ -942,7 +942,7 @@
 
   .map-info{
     position:absolute;
-    top:10px;
+    top:96px;
     right:10px;
     bottom:10px;
     width:320px;
@@ -1031,6 +1031,53 @@
   .zone-label::before{display:none !important;}
 
   /* ---------- cursor coordinate readout ---------- */
+
+  /* ---------- морская обстановка и восход/закат в карточке района ---------- */
+  .marine-box{
+    margin-top:14px;
+    padding-top:12px;
+    border-top:1px solid var(--border);
+  }
+  .marine-head{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    margin-bottom:9px;
+    font-size:.72rem;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  .marine-row{
+    display:grid;
+    grid-template-columns:20px minmax(0,1fr) auto;
+    align-items:baseline;
+    gap:9px;
+    padding:3px 0;
+    font-size:.84rem;
+    line-height:1.5;
+  }
+  .mr-ic{font-size:.85rem;line-height:1.4;text-align:center;opacity:.85;}
+  .mr-label{color:var(--ink-muted);}
+  .mr-val{color:var(--ink);font-variant-numeric:tabular-nums;text-align:right;}
+  .marine-body.loading,
+  .marine-body.marine-error{
+    padding:2px 0;
+    font-size:.82rem;
+    line-height:1.5;
+    color:var(--ink-muted);
+  }
+  .marine-foot{
+    margin-top:9px;
+    font-size:.7rem;
+    line-height:1.45;
+    color:var(--ink-faint);
+  }
+  @media (max-width:520px){
+    .marine-row{grid-template-columns:20px minmax(0,1fr);}
+    .mr-val{grid-column:2;text-align:left;}
+  }
+
   .map-coord-readout{
     position:absolute;
     right:8px;
