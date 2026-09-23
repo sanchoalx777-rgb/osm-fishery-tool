@@ -769,7 +769,7 @@
     position:absolute;
     top:calc(100% + 6px);
     right:0;
-    width:280px;
+    width:320px;
     max-width:calc(100vw - 40px);
     max-height:min(64vh, 540px);
     overflow-y:auto;
@@ -1077,6 +1077,81 @@
     .marine-row{grid-template-columns:20px minmax(0,1fr);}
     .mr-val{grid-column:2;text-align:left;}
   }
+
+
+  /* ---------- панель «Инструменты» на карте ---------- */
+  .coord-tool{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    padding:12px 0;
+    border-top:1px solid var(--border);
+  }
+  .coord-tool input[type="text"]{
+    width:100%;
+    box-sizing:border-box;
+    padding:7px 10px;
+    border:1px solid var(--border-strong);
+    border-radius:5px;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"IBM Plex Mono",monospace;
+    font-size:.78rem;
+    line-height:1.4;
+  }
+  .coord-tool input[type="text"]:focus{outline:none;border-color:var(--accent);}
+  .coord-tool button{
+    display:block;
+    width:100%;
+    box-sizing:border-box;
+    padding:7px 10px;
+    border:1px solid var(--border-strong);
+    border-radius:5px;
+    background:var(--surface-2);
+    color:var(--ink);
+    font:inherit;
+    font-size:.8rem;
+    line-height:1.3;
+    text-align:left;
+    cursor:pointer;
+    transition:border-color .15s, color .15s, background .15s;
+  }
+  .coord-tool button:hover{border-color:var(--accent);color:var(--accent-text);}
+  .coord-tool button.active{border-color:var(--accent);color:var(--accent-text);background:var(--accent-soft);}
+  .ct-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:stretch;}
+  .coord-tool button.ct-ghost{
+    width:auto;
+    text-align:center;
+    background:transparent;
+    color:var(--ink-muted);
+    font-size:.76rem;
+    white-space:nowrap;
+  }
+  .ct-result{
+    display:block;
+    font-size:.76rem;
+    line-height:1.5;
+    color:var(--ink-muted);
+  }
+  .ct-result:empty{display:none;}
+  .ct-result strong{color:var(--ink);font-variant-numeric:tabular-nums;}
+  .nearest-list{display:flex;flex-direction:column;gap:2px;margin-top:2px;}
+  .nearest-list:empty{display:none;}
+  .nearest-item{
+    display:grid;
+    grid-template-columns:18px minmax(0,1fr) auto;
+    align-items:baseline;
+    gap:8px;
+    padding:5px 6px;
+    border-radius:5px;
+    font-size:.78rem;
+    cursor:pointer;
+    transition:background .15s;
+  }
+  .nearest-item:hover{background:var(--bg);}
+  .ni-rank{color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:.7rem;text-align:center;}
+  .ni-name{color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .ni-dist{color:var(--ink-muted);font-size:.74rem;font-variant-numeric:tabular-nums;white-space:nowrap;}
 
   .map-coord-readout{
     position:absolute;
@@ -1462,17 +1537,21 @@
                   <input type="text" id="coordInput" autocomplete="off" spellcheck="false" placeholder="Координаты: 43.115, 131.885" aria-label="Координаты для поиска района">
                   <button type="button" id="coordFindBtn">Найти район</button>
                   <button type="button" id="coordClickBtn" title="Кликните по карте, чтобы определить район в этой точке">Найти по клику на карте</button>
-                  <button type="button" id="shareCoordBtn" title="Скопировать ссылку на эту точку">🔗 Ссылка на точку</button>
+                  <button type="button" id="shareCoordBtn" title="Скопировать ссылку на эту точку">Ссылка на точку</button>
                   <span class="ct-result" id="coordResult"></span>
                 </div>
                 <div class="coord-tool measure-tool">
-                  <button type="button" id="measureToggleBtn" title="Кликните две точки на карте, чтобы узнать расстояние и курс между ними">Измерить расстояние</button>
-                  <button type="button" id="measureClearBtn" title="Очистить измерение">Очистить</button>
+                  <div class="ct-row">
+                    <button type="button" id="measureToggleBtn" title="Кликните две точки на карте, чтобы узнать расстояние и курс между ними">Измерить расстояние</button>
+                    <button type="button" class="ct-ghost" id="measureClearBtn" title="Очистить измерение">Очистить</button>
+                  </div>
                   <span class="ct-result" id="measureResult"></span>
                 </div>
                 <div class="coord-tool nearest-tool">
-                  <button type="button" id="nearestToggleBtn" title="Кликните точку на карте, чтобы увидеть ближайшие порты">Ближайшие порты</button>
-                  <button type="button" id="nearestClearBtn" title="Очистить">Очистить</button>
+                  <div class="ct-row">
+                    <button type="button" id="nearestToggleBtn" title="Кликните точку на карте, чтобы увидеть ближайшие порты">Ближайшие порты</button>
+                    <button type="button" class="ct-ghost" id="nearestClearBtn" title="Очистить">Очистить</button>
+                  </div>
                   <span class="ct-result" id="nearestResult"></span>
                 </div>
                 <div class="nearest-list" id="nearestList"></div>
