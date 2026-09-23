@@ -241,7 +241,7 @@
   .topbar{
     position:sticky;
     top:0;
-    z-index:20;
+    z-index:1500;
     background:var(--bg);
     border-bottom:1px solid var(--border);
     padding:16px 0 14px;
@@ -916,7 +916,7 @@
   @media (max-width:640px){
     .map-canvas-wrap{height:min(64vh, 640px);min-height:380px;}
   }
-  #leafletMap{width:100%;height:100%;background:var(--map-ocean);}
+  #leafletMap{width:100%;height:100%;background:var(--map-ocean);position:relative;z-index:0;}
   :root[data-theme="dark"] #leafletMap{background:var(--map-ocean);}
   @media (prefers-color-scheme:dark){
     :root:not([data-theme="light"]) #leafletMap{background:var(--map-ocean);}
